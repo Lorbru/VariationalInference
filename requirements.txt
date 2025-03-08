@@ -1,0 +1,8 @@
+# Ajoutez ici les dépendances nécessaires pour votre projet
+numpy
+pandas
+matplotlib
+scipy
+scikit-learn
+tqdm
+torch
