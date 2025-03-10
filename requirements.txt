@@ -1,4 +1,5 @@
 # Ajoutez ici les dépendances nécessaires pour votre projet
+ipykernel
 numpy
 pandas
 matplotlib

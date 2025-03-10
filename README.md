@@ -2,28 +2,20 @@
 
 ## Environnement et execution locale
 
-1. Clonez le dépôt :
-    ```bash
-    git clone https://github.com/Lorbru/VariationalInference.git
-    ```
+*Activation de l'environnement et dépendances :*
 
-2. Créez un environnement virtuel :
-    ```bash
-    python -m venv env
-    ```
+```powershell
+git clone https://github.com/Lorbru/VariationalInference.git
 
-3. Activez l'environnement virtuel :
-    - Sur Windows :
-        ```bash
-        .\env\Scripts\activate
-        ```
-    - Sur macOS et Linux :
-        ```bash
-        source env/bin/activate
-        ```
+python -m venv env
 
-4. Installez les dépendances :
-    ```bash
-    pip install -r requirements.txt
-    ```
+.\env\Scripts\activate
 
+pip install -r requirements.txt
+```
+
+## Demonstration
+
+Démonstration des implémentations dans le fichier ```demo.ipynb```
+
+Lien vers le rapport : https://www.overleaf.com/5537674796gjjnxjvpmypz#3ebd18
