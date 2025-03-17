@@ -15,7 +15,6 @@ from abc import ABC, abstractmethod
 
 class ADVIModel(ABC):
 
-
     """
     Abstract class for ADVI models : user is required to implement the following methods
         * log_p_x_theta : log joint density p(x, theta)
@@ -249,7 +248,7 @@ class PPCA_ARD(ADVIModel):
 
 class ADVI(sklearn.base.BaseEstimator):
 
-    def __init__(self, advi_model, mc_size=1, threshold=1e-4, lr=0.1, max_iter=1000):
+    def __init__(self, advi_model, mc_size=1, threshold=1e-4, lr=0.1, max_iter=100):
         
         self.model = advi_model
         self.param_dim = advi_model.param_dim
@@ -266,10 +265,27 @@ class ADVI(sklearn.base.BaseEstimator):
         self.__alphastep = 0.1
 
     def Sinv(self, eta, mu, omega):
+        """
+        Inverse transformation of S
+
+        Args:
+            eta (torch.Tensor) : monte carlo sample
+            mu (torch.Tensor) : mu parameter
+            omega (torch.Tensor) : omega parameter
+
+        Returns:
+            (torch.Tensor) : S^(-1)(eta)
+        """
         return (torch.exp(omega) * eta) + mu
 
     def fit(self, X):
 
+        """
+        Fit the model to the data X
+
+        Params:
+            X (ndarray or torch.Tensor) : data to fit
+        """
         X = torch.tensor(X)
         mu = torch.zeros(self.param_dim, 1)
         omega = torch.zeros(self.param_dim, 1)
@@ -287,7 +303,24 @@ class ADVI(sklearn.base.BaseEstimator):
         self.mu = mu
         self.omega = omega
 
+    def estimates(self):
+        """
+        Get the estimates of the model after optimization
+
+        Returns:
+            mu (torch.Tensor) : mu estimation
+            omega (torch.Tensor) : omega estimation
+        """
+        return self.mu, self.omega
+
     def gradient(self, x, mu, omega, zeta):
+        """
+        Get the gradient for mu and omega with data x and zeta
+
+        Returns:
+            grad_mu (torch.Tensor) : grad mu estimation
+            grad_omega (torch.Tensor) : grad omega estimation
+        """
         grad_mu = torch.zeros(self.param_dim, 1)
         grad_omega = torch.zeros(self.param_dim, 1)
         for s in range(self.mc_size) :
