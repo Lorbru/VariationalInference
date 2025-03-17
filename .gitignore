@@ -1,5 +1,4 @@
-Data/train.csv
-Data/sample50000.csv
+Data/
 **/__pycache__
 **/ipynb_checkpoints
 env/
