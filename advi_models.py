@@ -122,4 +122,119 @@ class PPCA_ARD(ADVIModel):
     
     def size_params(self):
         return self.param_dim
+
+class GammaPoissonNMF(ADVIModel):
+    def __init__(self, X, latent_dim=10,mc_size=1,threshold=1e-4, lr=0.1, max_iter=1000):
+        """
+        Initialize the Gamma-Poisson Non-Negative Matrix Factorization (NMF) model.
+
+        Args:
+            X (torch.Tensor): Data matrix (observations × features).
+            latent_dim (int): Dimension of the latent space.
+            mc_size (int): Monte Carlo sample size.
+            threshold (float): Convergence threshold for optimization.
+            lr (float): Learning rate for optimization.
+            max_iter (int): Maximum number of iterations.
+        """
+
+        super().__init__(mc_size=mc_size, threshold=threshold, lr=lr, max_iter=max_iter)
+        self.X = X
+        self.latent_dim = latent_dim
+        self.a_w, self.b_w = 0.1, 0.1  #  prior Gamma W
+        self.a_h, self.b_h = 0.1, 0.1  #  prior Gamma H
+        self.theta = self.initialize_parameters()
+
+    def initialize_parameters(self):
+        """
+        Random initialization of W and H using Gamma distributions.
+
+        Returns:
+            theta (torch.nn.Parameter): Flattened tensor containing the parameters W and H.
+        """
+
+        n_features = self.X.shape[1]
+        n_samples = self.X.shape[0]
+        k = self.latent_dim
+
+        # Initialisation avec des distributions Gamma (conforme à l'article)
+        W_init = torch.distributions.Gamma(self.a_w, self.b_w).sample((n_features, k))
+        H_init = torch.distributions.Gamma(self.a_h, self.b_h).sample((k, n_samples))
+
+        # Application de la contrainte de monotonie sur H
+        H_init = torch.cumsum(H_init.abs(), dim=1)
+
+        # Conversion en paramètre optimisable
+        theta = torch.cat([W_init.flatten(), H_init.flatten()])
+        return nn.Parameter(theta)
+
+    def log_p_x_theta(self, x, theta):
+        """
+        Compute the log-likelihood log p(x|theta) and priors.
+
+        Args:
+            x (torch.Tensor): Data matrix.
+            theta (torch.Tensor): Model parameters (W and H).
+
+        Returns:
+            log_p (torch.Tensor): Log probability value.
+        """
+
+        # 1. Extraire W et H à partir de theta
+        W, H = self.extract_params(theta)
+       # print("W shape:", W.shape, "| H shape:", H.shape)
+        # 2. Contrainte d'ordre sur H (monotonicité)
+        H = torch.cumsum(H.abs(), dim=1)
+        
+        # 3. Likelihood Poisson (V ~ Poisson(WH))
+        lam = torch.mm(H.T, W.T)  # [400,10] @ [10,4096] → [400,4096]
+        
+            
+        log_lik = torch.sum(dist.Poisson(lam).log_prob(x))
+        
+        # 4. Priors Gamma sur W et H
+        log_prior_W = torch.sum(dist.Gamma(self.a_w, self.b_w).log_prob(W))
+        log_prior_H = torch.sum(dist.Gamma(self.a_h, self.b_h).log_prob(H))
+        
+        return log_lik + log_prior_W + log_prior_H
+    
+    def Tinv(self, zeta):
+          
+        return torch.exp(zeta)  
+    
+    def log_det_jac_Tinv(self, zeta):
+        return torch.sum(zeta)
+    
+    def extract_params(self, theta):
+        """
+        Extract parameters W and H from the flattened parameter vector theta.
+
+        Args:
+            theta (torch.Tensor): Model parameters.
+
+        Returns:
+            W, H (torch.Tensor): Extracted matrices.
+        """
+        theta = theta.flatten()  
+        
+        n_features = self.X.shape[1]  # 4096
+        k = self.latent_dim           # 10
+        n_samples = self.X.shape[0]   # 400
+        
+        total_params_expected = n_features * k + k * n_samples  # 4096*10 + 10*400 = 44960
+        if len(theta) != total_params_expected:
+            raise ValueError(
+                f"Taille incorrecte de theta : reçu {len(theta)}, "
+                f"attendu {total_params_expected} "
+                f"(W:{n_features*k} + H:{k*n_samples})"
+            )
+        
+        W_size = n_features * k
+        W = theta[:W_size].reshape(n_features, k)
+        
+        H = theta[W_size:W_size + k * n_samples].reshape(k, n_samples)
+        
+        return W,H 
+    def size_params(self):
+        n_samples, n_features = self.X.shape
+        return (n_features + n_samples) * self.latent_dim
     
